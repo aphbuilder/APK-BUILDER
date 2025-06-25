@@ -4,12 +4,14 @@ plugins {
 }
 
 android {
-    compileSdk 33
+    // We are targeting a modern Android version, so we need to be precise.
+    namespace 'com.example.mycaptureapp'
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.example.mycaptureapp"
         minSdk 26
-        targetSdk 33
+        targetSdk 34 // Targeting Android 14
         versionCode 1
         versionName "1.0"
     }
@@ -23,15 +25,14 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
-    // This is needed for the ViewBinding classes
-    buildFeatures {
-        viewBinding true
-    }
 }
 
 dependencies {
+    // Updated versions for better compatibility and stability
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.5.0'
-    implementation platform('com.google.firebase:firebase-bom:31.2.3')
+    implementation 'com.google.android.material:material:1.11.0' // Major version update
+
+    // Updated Firebase Bill of Materials (BOM). This is the most important change.
+    implementation platform('com.google.firebase:firebase-bom:32.7.2')
     implementation 'com.google.firebase:firebase-storage'
 }
