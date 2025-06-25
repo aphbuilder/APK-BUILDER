@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ "main" ] # This runs the build every time you change a file
+    branches: [ "main" ]
 
 jobs:
   build:
@@ -31,7 +31,7 @@ jobs:
       run: ./gradlew assembleDebug
 
     - name: Upload APK
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4 # <-- THE FIX IS HERE
       with:
         name: app-debug-apk
         path: app/build/outputs/apk/debug/app-debug.apk
