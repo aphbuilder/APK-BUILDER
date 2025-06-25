@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    
+    <!-- THIS IS THE NEW LINE THAT FIXES THE ERROR -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <!-- For older Android versions, storage permission is needed -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
@@ -20,7 +24,8 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".CaptureService" android:foregroundServiceType="mediaProjection" />
+        <!-- We need to add the foregroundServiceType here as well -->
+        <service android:name=".CaptureService" android:foregroundServiceType="mediaProjection|microphone" />
 
     </application>
 </manifest>
