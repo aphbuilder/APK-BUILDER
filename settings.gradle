@@ -1,2 +1,18 @@
+pluginManagement {
+    repositories {
+        // This tells Gradle where to find the build tools themselves
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        // This tells Gradle where to find your app's libraries (like Firebase)
+        google()
+        mavenCentral()
+    }
+}
 rootProject.name = "MyCaptureApp"
 include ':app'
