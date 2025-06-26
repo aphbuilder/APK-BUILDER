@@ -1,17 +1,17 @@
+// This now applies the plugins provided by the root build.gradle file
 plugins {
     id 'com.android.application'
     id 'com.google.gms.google-services'
 }
 
 android {
-    // We are targeting a modern Android version, so we need to be precise.
     namespace 'com.example.mycaptureapp'
     compileSdk 34
 
     defaultConfig {
         applicationId "com.example.mycaptureapp"
         minSdk 26
-        targetSdk 34 // Targeting Android 14
+        targetSdk 34
         versionCode 1
         versionName "1.0"
     }
@@ -28,11 +28,9 @@ android {
 }
 
 dependencies {
-    // Updated versions for better compatibility and stability
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.11.0' // Major version update
+    implementation 'com.google.android.material:material:1.11.0'
 
-    // Updated Firebase Bill of Materials (BOM). This is the most important change.
     implementation platform('com.google.firebase:firebase-bom:32.7.2')
     implementation 'com.google.firebase:firebase-storage'
 }
