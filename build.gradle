@@ -1,7 +1,24 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
-plugins {
-    // Updated plugin versions for better compatibility with modern Android builds
-    id 'com.android.application' version '8.2.2' apply false
-    id 'com.android.library' version '8.2.2' apply false
-    id 'com.google.gms.google-services' version '4.4.1' apply false
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // This explicitly tells the build where to find the Android and Google plugins
+        classpath 'com.android.tools.build:gradle:8.2.2'
+        classpath 'com.google.gms:google-services:4.4.1'
+    }
+}
+
+// This is required for modern Gradle versions
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
 }
