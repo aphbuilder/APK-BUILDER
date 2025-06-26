@@ -12,25 +12,26 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # --- THIS IS THE NEW STEP THAT SOLVES THE PROBLEM ---
-    - name: Download Gradle Wrapper JAR
-      run: |
-        mkdir -p gradle/wrapper
-        wget --output-document=gradle/wrapper/gradle-wrapper.jar https://repo1.maven.org/maven2/org/gradle/gradle-wrapper/8.0/gradle-wrapper-8.0.jar
-    # ---------------------------------------------------
-
     - name: Set up JDK 11
       uses: actions/setup-java@v3
       with:
         distribution: 'temurin'
         java-version: '11'
 
-    - name: Create google-services.json
-      run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > app/google-services.json
-      
+    # This action installs a temporary Gradle instance for us.
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
 
+    # --- THIS IS THE NEW FIX ---
+    # Run the 'wrapper' task to generate gradlew, gradlew.bat, and the essential .jar file
+    # This replaces the broken 'wget' command.
+    - name: Generate Gradle Wrapper
+      run: gradle wrapper --gradle-version 8.0
+    # ---------------------------
+
+    - name: Create google-services.json
+      run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > app/google-services.json
+      
     - name: Make gradlew executable
       run: chmod +x ./gradlew
 
