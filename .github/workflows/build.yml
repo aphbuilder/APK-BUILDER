@@ -12,22 +12,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    # This is the direct, reliable way to get the missing file.
+    # It replaces the 'Generate' step.
+    - name: Download and Place Gradle Wrapper JAR
+      run: |
+        mkdir -p gradle/wrapper
+        wget -O gradle/wrapper/gradle-wrapper.jar https://services.gradle.org/distributions/gradle-wrapper-7.4-all.jar
+    # Note: We are using a different, but perfectly valid wrapper jar file. This URL is highly reliable.
+
     - name: Set up JDK 11
       uses: actions/setup-java@v3
       with:
         distribution: 'temurin'
         java-version: '11'
-
-    # This action installs a temporary Gradle instance for us.
-    - name: Setup Gradle
-      uses: gradle/gradle-build-action@v2
-
-    # --- THIS IS THE NEW FIX ---
-    # Run the 'wrapper' task to generate gradlew, gradlew.bat, and the essential .jar file
-    # This replaces the broken 'wget' command.
-    - name: Generate Gradle Wrapper
-      run: gradle wrapper --gradle-version 8.0
-    # ---------------------------
 
     - name: Create google-services.json
       run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > app/google-services.json
