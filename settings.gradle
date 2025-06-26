@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "MyCaptureApp"
-include ':app'
+include(":app") // Make sure this line has the colon inside the quotes
