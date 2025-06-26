@@ -1,12 +1,12 @@
 package com.example.mycaptureapp;
 
-// A LOT of imports are needed for this file!
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.PixelFormat;
 import android.hardware.display.DisplayManager;
@@ -20,13 +20,10 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
-import android.util.DisplayMetrics;
-import android.view.WindowManager;
+import android.os.Looper;
 
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -59,7 +56,7 @@ public class CaptureService extends Service {
     public void onCreate() {
         super.onCreate();
         mediaProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-        handler = new Handler();
+        handler = new Handler(Looper.getMainLooper());
     }
 
     @Override
@@ -71,10 +68,24 @@ public class CaptureService extends Service {
                     .setContentText("Actively capturing screen and audio.")
                     .setSmallIcon(android.R.drawable.ic_menu_camera)
                     .build();
-            startForeground(1, notification);
 
             int resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, -1);
-            Intent resultData = intent.getParcelableExtra(EXTRA_RESULT_DATA);
+
+            // CORRECTED WAY TO GET PARCELABLE EXTRA
+            Intent resultData = intent.getParcelableExtra(EXTRA_RESULT_DATA, Intent.class);
+            
+            if (resultData == null) {
+                stopCapture();
+                return START_NOT_STICKY;
+            }
+
+            // CORRECTED WAY TO START FOREGROUND SERVICE
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION | ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
+            } else {
+                startForeground(1, notification);
+            }
+
             captureCount = intent.getIntExtra("CAPTURE_COUNT", 0);
             long period = intent.getIntExtra("CAPTURE_PERIOD", 60) * 1000L;
             currentCount = 0;
@@ -105,18 +116,15 @@ public class CaptureService extends Service {
                 });
                 currentCount++;
             }
-        }, 0, period);
+        }, 5000, period); // Initial 5-second delay to ensure everything is set up
     }
 
     private void captureScreenshot() {
         if (mediaProjection == null) return;
 
-        DisplayMetrics metrics = new DisplayMetrics();
-        WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
-        wm.getDefaultDisplay().getMetrics(metrics);
-        int width = metrics.widthPixels;
-        int height = metrics.heightPixels;
-        int density = metrics.densityDpi;
+        int width = getResources().getDisplayMetrics().widthPixels;
+        int height = getResources().getDisplayMetrics().heightPixels;
+        int density = getResources().getDisplayMetrics().densityDpi;
 
         imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2);
         virtualDisplay = mediaProjection.createVirtualDisplay("ScreenCapture",
@@ -124,10 +132,11 @@ public class CaptureService extends Service {
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                 imageReader.getSurface(), null, null);
 
-        imageReader.setOnImageAvailableListener(reader -> {
+        // Add a short delay to allow the virtual display to be ready
+        handler.postDelayed(() -> {
             Image image = null;
             try {
-                image = reader.acquireLatestImage();
+                image = imageReader.acquireLatestImage();
                 if (image != null) {
                     Image.Plane[] planes = image.getPlanes();
                     ByteBuffer buffer = planes[0].getBuffer();
@@ -138,7 +147,6 @@ public class CaptureService extends Service {
                     Bitmap bitmap = Bitmap.createBitmap(width + rowPadding / pixelStride, height, Bitmap.Config.ARGB_8888);
                     bitmap.copyPixelsFromBuffer(buffer);
 
-                    // Crop the padding out
                     Bitmap croppedBitmap = Bitmap.createBitmap(bitmap, 0, 0, width, height);
                     uploadBitmap(croppedBitmap);
 
@@ -154,17 +162,22 @@ public class CaptureService extends Service {
                     virtualDisplay.release();
                 }
                 if (imageReader != null) {
-                   imageReader.close();
+                    imageReader.close();
                 }
             }
-        }, handler);
+        }, 300); // 300ms delay
     }
 
     private void captureAudio() {
-        String timestamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(new Date());
+        String timestamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss_audio", Locale.US).format(new Date());
         String fileName = getExternalCacheDir().getAbsolutePath() + "/" + timestamp + ".3gp";
 
-        mediaRecorder = new MediaRecorder();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            mediaRecorder = new MediaRecorder(this);
+        } else {
+            mediaRecorder = new MediaRecorder();
+        }
+        
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
         mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
@@ -178,20 +191,22 @@ public class CaptureService extends Service {
             return;
         }
 
-        // Stop recording after 5 seconds and upload
-        new Handler().postDelayed(() -> {
-            mediaRecorder.stop();
-            mediaRecorder.release();
-            mediaRecorder = null;
-            uploadAudio(fileName);
+        handler.postDelayed(() -> {
+            try {
+                mediaRecorder.stop();
+                mediaRecorder.release();
+                mediaRecorder = null;
+                uploadAudio(fileName);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }, 5000); // 5 seconds of audio
     }
-
 
     private void uploadBitmap(Bitmap bitmap) {
         FirebaseStorage storage = FirebaseStorage.getInstance();
         StorageReference storageRef = storage.getReference();
-        String timestamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(new Date());
+        String timestamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss_image", Locale.US).format(new Date());
         StorageReference imageRef = storageRef.child("captures/" + timestamp + ".jpg");
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -201,10 +216,13 @@ public class CaptureService extends Service {
         imageRef.putBytes(data);
     }
 
+
+
     private void uploadAudio(String filePath) {
         FirebaseStorage storage = FirebaseStorage.getInstance();
         StorageReference storageRef = storage.getReference();
         File file = new File(filePath);
+        if (!file.exists()) return;
         StorageReference audioRef = storageRef.child("captures/" + file.getName());
 
         audioRef.putFile(Uri.fromFile(file)).addOnSuccessListener(taskSnapshot -> file.delete());
@@ -223,7 +241,6 @@ public class CaptureService extends Service {
         stopSelf();
     }
 
-
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel serviceChannel = new NotificationChannel(
@@ -232,7 +249,9 @@ public class CaptureService extends Service {
                     NotificationManager.IMPORTANCE_DEFAULT
             );
             NotificationManager manager = getSystemService(NotificationManager.class);
-            manager.createNotificationChannel(serviceChannel);
+            if (manager != null) {
+                manager.createNotificationChannel(serviceChannel);
+            }
         }
     }
 
